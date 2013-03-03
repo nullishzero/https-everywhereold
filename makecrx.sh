@@ -36,11 +36,15 @@ VERSION=`python -c "import json ; print json.loads(open('chromium/manifest.json'
 
 echo "Building chrome version" $VERSION
 
-if [ -x trivial-validate.py ]; then
-	VALIDATE="./trivial-validate.py --ignoredups google --ignoredups facebook"
+if [ -f utils/trivial-validate.py ]; then
+	VALIDATE="python utils/trivial-validate.py --ignoredups google --ignoredups facebook"
+elif [ -x utils/trivial-validate ] ; then
+  # This case probably never happens
+	VALIDATE=./utils/trivial-validate
 else
 	VALIDATE=./trivial-validate
 fi
+
 if $VALIDATE src/chrome/content/rules >&2
 then
   echo Validation of included rulesets completed. >&2
@@ -50,9 +54,9 @@ else
   exit 1
 fi
 
-if [ -f relaxng.xml -a -x "$(which xmllint)" ] >&2
+if [ -f utils/relaxng.xml -a -x "$(which xmllint)" ] >&2
 then
-  if xmllint --noout --relaxng relaxng.xml src/chrome/content/rules/*.xml
+  if xmllint --noout --relaxng utils/relaxng.xml src/chrome/content/rules/*.xml
   then
     echo Validation of rulesets with RELAX NG grammar completed. >&2
   else
@@ -67,17 +71,20 @@ sed -e "s/VERSION/$VERSION/g" chromium/updates-master.xml > chromium/updates.xml
 
 [ -d pkg ] || mkdir -p pkg
 [ -e pkg/crx ] && rm -rf pkg/crx
-cp -r chromium pkg/crx
+mkdir -p pkg/crx/rules
 cd pkg/crx
-do_not_ship="*.py *.xml"
+cp -a ../../chromium/* .
+do_not_ship="*.py *.xml icon.jpg"
 rm -f $do_not_ship
 cd ../..
-cp -r src/chrome/content/rules pkg/crx/
-# TODO: switch the chrome version over to using default.rulesets too
-# For now, don't ship it!
-[ -f pkg/crx/rules/default.rulesets ] && rm -f pkg/crx/rules/default.rulesets
+
+python ./utils/merge-rulesets.py
+
+export RULESETS=chrome/content/rules/default.rulesets
+cp src/$RULESETS pkg/crx/rules/default.rulesets
+
 echo 'var rule_list = [' > pkg/crx/rule_list.js
-for i in $(ls pkg/crx/rules/*.xml)
+for i in $(find pkg/crx/rules/ -maxdepth 1 \( -name '*.xml' -o -name '*.rulesets' \))
 do
     echo "\"rules/$(basename $i)\"," >> pkg/crx/rule_list.js
 done

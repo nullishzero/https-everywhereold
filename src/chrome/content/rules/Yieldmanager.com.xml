@@ -1,5 +1,0 @@
-<ruleset name="Yieldmanager.com">
-	<target host="ad.yieldmanager.com" />
-
-	<rule from="^http://ad\.yieldmanager\.com/" to="https://ad.yieldmanager.com/" />
-</ruleset>

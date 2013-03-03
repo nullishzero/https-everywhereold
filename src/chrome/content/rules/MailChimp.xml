@@ -1,0 +1,91 @@
+<!--
+	For problematic rules, see MailChimp-mismatches.xml.
+
+
+	CDN buckets:
+
+		- s3.amazonaws.com:
+
+			- cdn-images.mailchimp.com
+			- experts-production		(used on experts)
+			- int-dir			(used on connect.; doesn't have "blog" in filenames)
+
+
+		- dbfv8p2wljo34.cloudfront.net
+
+			- static.mailchimp.com
+
+		- dbhkt46el5ri0.cloudfront.net
+
+			- equivalent to cdn-images.mailchimp.com.s3.amazonaws.com
+			- cdn-images.mailchimp.com
+
+		- mcid.heroku.com
+
+		- mc-experts.herokuapp.com
+
+			- experts.mailchimp.com
+
+		- mc-status.herokuapp.com		(404, "No such app")
+
+			- status.mailchimp.com
+
+
+	Nonfunctional domains:
+
+		- 50.23.108.136		(shows sfbloghost)
+
+		- mailchimp.com subdomains:
+
+			- apidocs	(shows sfbloghost, cert valid)
+			- cf		(shows sfbloghost over https, 403 over http)
+			- creative	(hosted on Tumblr)
+
+
+	Problematic subdomains:
+
+		- status		(mismatched, CN: *.herokuapp.com)
+
+
+	Fully covered subdomains:
+
+		- (www.)
+		- admin
+		- \w+.admin
+		- blog
+		- cdn-images	(→ s3.amazonaws.com/cdn-images.mailchimp.com/)
+		- connect	(→ mcid.heroku.com)
+		- experts	(→ mc-experts.herokuapp.com)
+		- login
+		- sfbloghost
+		- static	(→ dbfv8p2wljo34.cloudfront.net)
+
+
+-->
+<ruleset name="MailChimp (partial)">
+
+	<target host="mailchimp.com" />
+	<target host="*.mailchimp.com" />
+
+
+	<!--	is wildcard login cookie used on unsecureable pages?
+									-->
+	<securecookie host="^.+\.mailchimp\.com$" name=".+" />
+
+
+	<rule from="^http://((?:(?:\w+\.)?admin|blog|login|sfbloghost|www)\.)?mailchimp\.com/"
+		to="https://$1mailchimp.com/" />
+
+	<rule from="^https?://cdn-images\.mailchimp\.com/"
+		to="https://dbhkt46el5ri0.cloudfront.net/" />
+
+	<rule from="^https?://connect\.mailchimp\.com/"
+		to="https://mcid.heroku.com/" />
+
+	<rule from="^https?://experts\.mailchimp\.com/"
+		to="https://mc-experts.herokuapp.com/" />
+
+	<rule from="^https?://static\.mailchimp\.com/"
+		to="https://dbfv8p2wljo34.cloudfront.net/" />
+
+</ruleset>

@@ -1,18 +1,31 @@
 {
-    "background_page": "https-e.html", 
-    "description": "Automatically encrypt your connection to major websites.", 
+    "author": {
+        "email": "eff.software.projects@gmail.com"
+    }, 
+    "background": {
+        "scripts": [
+            "util.js", 
+            "URI.js", 
+            "rule_list.js", 
+            "rules.js", 
+            "background.js"
+        ]
+    }, 
+    "default_locale": "en", 
+    "description": "__MSG_about_ext_description__", 
     "homepage_url": "https://www.eff.org/https-everywhere", 
     "icons": {
         "128": "icon128.png", 
         "16": "icon16.png", 
         "48": "icon48.png"
     }, 
-    "minimum_chrome_version": "17.0.963.37", 
-    "name": "HTTPS Everywhere", 
+    "manifest_version": 2, 
+    "minimum_chrome_version": "18", 
+    "name": "__MSG_about_ext_name__", 
     "page_action": {
         "default_icon": "icon48.png", 
-        "default_popup": "appliedrules.html", 
-        "default_title": "HTTPS Everywhere"
+        "default_popup": "popup.html", 
+        "default_title": "__MSG_about_ext_name__"
     }, 
     "permissions": [
         "webRequest", 
@@ -22,5 +35,5 @@
         "<all_urls>"
     ], 
     "update_url": "https://www.eff.org/files/https-everywhere-chrome-updates.xml", 
-    "version": "2012.3.3"
+    "version": "2013.1.3"
 }

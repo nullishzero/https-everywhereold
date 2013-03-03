@@ -1,0 +1,36 @@
+<!--
+	Other ACLU rulesets:
+
+		- ACLU_of_Northern_California.xml
+
+
+	Partially covered domains:
+
+		- (www.)aclu.org	(some [most?] pages started redirecting to http)
+
+-->
+<ruleset name="ACLU (partial)">
+
+	<target host="aclu.org" />
+	<target host="*.aclu.org" />
+		<exclusion pattern="^http://(?:www\.)?aclu\.org/[^/\.]*$" />
+	<target host="aclu-nj.org" />
+	<target host="www.aclu-nj.org" />
+
+
+	<securecookie host="^secure\.aclu\.org$" name=".*" />
+
+
+	<rule from="^http://aclu\.org/"
+		to="https://www.aclu.org/" />
+
+	<rule from="^http://(secure|www)\.aclu\.org/"
+		to="https://$1.aclu.org/" />
+
+	<!--	- !www times out
+		- Some pages 301 to http
+							-->
+	<rule from="^https?://(?:www\.)?aclu-nj\.org/(concrete/css|files|packages|secure|themes)/"
+		to="https://www.aclu-nj.org/$1/" />
+
+</ruleset>

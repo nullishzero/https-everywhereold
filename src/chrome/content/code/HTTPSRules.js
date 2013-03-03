@@ -16,7 +16,7 @@ function CookieRule(host, cookiename) {
   this.name_c = new RegExp(cookiename);
 }
 
-localPlatformRegexp = new RegExp("firefox");
+localPlatformRegexp = new RegExp("(firefox|mixedcontent)");
 ruleset_counter = 0;
 function RuleSet(name, xmlName, match_rule, default_off, platform) {
   this.id="httpseR" + ruleset_counter;
@@ -56,8 +56,10 @@ function RuleSet(name, xmlName, match_rule, default_off, platform) {
   }
 }
 
+var dom_parser = Cc["@mozilla.org/xmlextras/domparser;1"].createInstance(Ci.nsIDOMParser);
+
 RuleSet.prototype = {
-  _apply: function(urispec) {
+  apply: function(urispec) {
     // return null if it does not apply
     // and the new url if it does apply
     var i;
@@ -90,13 +92,14 @@ RuleSet.prototype = {
  wouldMatch: function(hypothetical_uri, alist) {
    // return true if this ruleset would match the uri, assuming it were http
    // used for judging moot / inactive rulesets
+   // alist is optional
 
    // if the ruleset is already somewhere in this applicable list, we don't
-   // care about hypothetical wouldMatch questios
-   if (this.name in alist.all) return false;
+   // care about hypothetical wouldMatch questions
+   if (alist && (this.name in alist.all)) return false;
 
    this.log(DBUG,"Would " +this.name + " match " +hypothetical_uri.spec +
-            "?  serial " + alist.serial);
+            "?  serial " + (alist && alist.serial));
     
    var uri = hypothetical_uri.clone();
    if (uri.scheme == "https") uri.scheme = "http";
@@ -117,11 +120,9 @@ RuleSet.prototype = {
     // If no rule applies, return null; if a rule would have applied but was
     // inactive, return 0; otherwise, return a fresh uri instance
     // for the target
-    var newurl = this._apply(uri.spec);
+    var newurl = this.apply(uri.spec);
     if (null == newurl) 
       return null;
-    if (0 == newurl)
-      return 0;
     var newuri = Components.classes["@mozilla.org/network/standard-url;1"].
                  createInstance(CI.nsIStandardURL);
     newuri.init(CI.nsIStandardURL.URLTYPE_STANDARD, 80,
@@ -236,11 +237,12 @@ const RuleWriter = {
     }
 
     sstream.close();
-    fstream.close();	
+    fstream.close();
+    // XXX: With DOMParser, we probably do not need to throw away the XML
+    // declaration anymore nowadays.
     data = data.replace(/<\?xml[^>]*\?>/, ""); 
     try {
-      data = data.replace(/<\?xml[^>]*\?>/, ""); 
-      var xmlrulesets = XML(data);
+      var xmlrulesets = dom_parser.parseFromString(data, "text/xml");
     } catch(e) { // file has been corrupted; XXX: handle error differently
       this.log(WARN,"Error in XML file: " + file.path + "\n" + e);
       return null;
@@ -248,13 +250,15 @@ const RuleWriter = {
     this.parseXmlRulesets(xmlrulesets, rule_store, file);
   },
 
-  parseXmlRulesets: function(xmlblob, rule_store, file) {
-    // Iterate over all the <ruleset>...</ruleset> elements in the file, and
-    // add them to the rule_store HTTPSRules object.
-    if (xmlblob.@name != xmlblob.@nonexistantthing) {
-      // The root of the XML tree has a name, which means it should be single a ruleset...
-      this.parseOneRuleset(xmlblob, rule_store, file);
+  parseXmlRulesets: function(xmldom, rule_store, file) {
+    // XML input files can either be a <ruleset> in a file, or a
+    // <rulesetlibrary> with many <rulesets> inside it (the latter form exists
+    // because ZIP does a much better job of compressing it).
+    if (xmldom.documentElement.nodeName == "ruleset") {
+      // This is a single ruleset.
+      this.parseOneRuleset(xmldom.documentElement, rule_store, file);
     } else {
+<<<<<<< HEAD
       if (xmlblob.@gitcommitid == xmlblob.@nonexistantthing) {
         this.log(DBUG, "gitcommitid tag not found in <xmlruleset>");
         rule_store.gitcommitid = "HEAD";
@@ -265,22 +269,35 @@ const RuleWriter = {
       // <ruleset> children
       var lngth = xmlblob.ruleset.length(); // premature optimisation
       if (lngth == 0 && (file.path.search("00README") == -1))
+=======
+      // The root of the XML tree is assumed to look like a <rulesetlibrary>
+      if (xmldom.documentElement.getAttribute("gitcommitid")) {
+        // The gitcommitid is a tricky hack to let us display the true full
+        // source code of a ruleset, even though we strip out comments at build
+        // time, by having the UI fetch the ruleset from the public https git repo.
+        this.log(DBUG, "gitcommitid tag not found in <xmlruleset>");
+        rule_store.gitcommitid = "HEAD";
+      } else {
+        rule_store.GITCommitID = xmldom.documentElement.getAttribute("gitcommitid");
+      }
+      var rulesets = xmldom.documentElement.getElementsByTagName("ruleset");
+      if (rulesets.length == 0 && (file.path.search("00README") == -1))
+>>>>>>> FETCH_HEAD
         this.log(WARN, "Probable <rulesetlibrary> with no <rulesets> in "
-                        + file.path + "\n" +  xmlblob);
-      for (var j = 0; j < lngth; j++) 
-        this.parseOneRuleset(xmlblob.ruleset[j], rule_store, file);
+                        + file.path + "\n" +  xmldom);
+      for (var j = 0; j < rulesets.length; j++)
+        this.parseOneRuleset(rulesets[j], rule_store, file);
     }
   },
 
   parseOneRuleset: function(xmlruleset, rule_store, file) {
-    // Extract an xmlrulset into the rulestore
-    this.log(DBUG, "Parsing " + xmlruleset.@name + " from " + file.path);
-
-    if (xmlruleset.@name == xmlruleset.@nonexistantthing) {
+    // Extract an xmlruleset into the rulestore
+    if (!xmlruleset.getAttribute("name")) {
       this.log(WARN, "This blob: '" + xmlruleset + "' is not a ruleset\n");
       return null;
     }
 
+<<<<<<< HEAD
     var match_rl = null;
     var dflt_off = null;
     var platform = null;
@@ -288,8 +305,17 @@ const RuleWriter = {
     if (xmlruleset.@default_off.length() > 0) dflt_off = xmlruleset.@default_off;
     if (xmlruleset.@platform.length() > 0) platform = xmlruleset.@platform;
     var rs = new RuleSet(xmlruleset.@name, xmlruleset.@f, match_rl, dflt_off, platform);
+=======
+    this.log(DBUG, "Parsing " + xmlruleset.getAttribute("name") + " from " + file.path);
+>>>>>>> FETCH_HEAD
 
-    if (xmlruleset.target.length() == 0) {
+    var match_rl = xmlruleset.getAttribute("match_rule");
+    var dflt_off = xmlruleset.getAttribute("default_off");
+    var platform = xmlruleset.getAttribute("platform");
+    var rs = new RuleSet(xmlruleset.getAttribute("name"), xmlruleset.getAttribute("f"), match_rl, dflt_off, platform);
+
+    var targets = xmlruleset.getElementsByTagName("target");
+    if (targets.length == 0) {
       var msg = "Error: As of v0.3.0, XML rulesets require a target domain entry,";
       msg = msg + "\nbut " + file.path + " is missing one.";
       this.log(WARN, msg);
@@ -305,8 +331,8 @@ const RuleWriter = {
 
     // add this ruleset into HTTPSRules.targets with all of the applicable
     // target host indexes
-    for (var i = 0; i < xmlruleset.target.length(); i++) {
-      var host = xmlruleset.target[i].@host;
+    for (var i = 0; i < targets.length; i++) {
+      var host = targets[i].getAttribute("host");
       if (!host) {
         this.log(WARN, "<target> missing host in " + file.path);
         return null;
@@ -316,20 +342,23 @@ const RuleWriter = {
       rule_store.targets[host].push(rs);
     }
 
-    for (var i = 0; i < xmlruleset.exclusion.length(); i++) {
-      var exclusion = new Exclusion(xmlruleset.exclusion[i].@pattern);
+    var exclusions = xmlruleset.getElementsByTagName("exclusion");
+    for (var i = 0; i < exclusions.length; i++) {
+      var exclusion = new Exclusion(exclusions[i].getAttribute("pattern"));
       rs.exclusions.push(exclusion);
     }
 
-    for (var i = 0; i < xmlruleset.rule.length(); i++) {
-      var rule = new Rule(xmlruleset.rule[i].@from,
-                          xmlruleset.rule[i].@to);
+    var rules = xmlruleset.getElementsByTagName("rule");
+    for (var i = 0; i < rules.length; i++) {
+      var rule = new Rule(rules[i].getAttribute("from"),
+                          rules[i].getAttribute("to"));
       rs.rules.push(rule);
     }
 
-    for (var i = 0; i < xmlruleset.securecookie.length(); i++) {
-      var c_rule = new CookieRule(xmlruleset.securecookie[i].@host,
-                                  xmlruleset.securecookie[i].@name);
+    var securecookies = xmlruleset.getElementsByTagName("securecookie");
+    for (var i = 0; i < securecookies.length; i++) {
+      var c_rule = new CookieRule(securecookies[i].getAttribute("host"),
+                                  securecookies[i].getAttribute("name"));
       rs.cookierules.push(c_rule);
       this.log(DBUG,"Cookie rule "+ c_rule.host+ " " +c_rule.name);
     }
@@ -407,6 +436,15 @@ const HTTPSRules = {
     }
   },
 
+  resetRulesetsToDefaults: function() {
+    // Callable from within the prefs UI and also for cleaning up buggy
+    // configurations...
+    for (var i in this.rulesets) {
+      if (this.rulesets[i].on_by_default) this.rulesets[i].enable();
+      else                                this.rulesets[i].disable();
+    }
+  },
+
   rewrittenURI: function(alist, input_uri) {
     // This function oversees the task of working out if a uri should be
     // rewritten, what it should be rewritten to, and recordkeeping of which
@@ -414,23 +452,14 @@ const HTTPSRules = {
     // the new uri if there was a rewrite.  Now it returns a JS object with a
     // newuri attribute and an applied_ruleset attribute (or null if there's
     // no rewrite).
-    var i = 0, userpass_present = false;
-    var uri = input_uri;
-    var blob = {};
-    blob.newuri = null;
-    if (!alist) this.log(DBUG, "No applicable list rewriting " + uri.spec);
+    var i = 0; 
+    userpass_present = false; // Global so that sanitiseURI can tweak it.
+                              // Why does JS have no tuples, again?
+    var blob = {}; blob.newuri = null;
+    if (!alist) this.log(DBUG, "No applicable list rewriting " + input_uri.spec);
+    this.log(NOTE, "Processing " + input_uri.spec);
 
-    // Rulesets shouldn't try to parse usernames and passwords.  If we find
-    // those, apply the ruleset without them and then add them back.
-    // When .userPass is absent, sometimes it is false and sometimes trying
-    // to read it raises an exception (probably depending on the URI type).
-    try {
-      if (input_uri.userPass) {
-        uri = input_uri.clone()
-        userpass_present = true;
-        uri.userPass = null;
-      } 
-    } catch(e) {}
+    var uri = this.sanitiseURI(input_uri);
 
     // Get the list of rulesets that target this host
     try {
@@ -470,19 +499,56 @@ const HTTPSRules = {
     return null;
   },
 
+  sanitiseURI: function(input_uri) {
+    // Rulesets shouldn't try to parse usernames and passwords.  If we find
+    // those, apply the ruleset without them (and then add them back later).
+    // When .userPass is absent, sometimes it is false and sometimes trying
+    // to read it raises an exception (probably depending on the URI type).
+    var uri = input_uri;
+    try {
+      if (input_uri.userPass) {
+        uri = input_uri.clone();
+        userpass_present = true; // tweaking a global in our caller :(
+        uri.userPass = null;
+      } 
+    } catch(e) {}
+
+    // example.com.  is equivalent to example.com
+    // example.com.. is invalid, but firefox would load it anyway
+    try {
+      if (uri.host)
+        try {
+          var h = uri.host;
+          if (h.charAt(h.length - 1) == ".") {
+            while (h.charAt(h.length - 1) == ".") 
+              h = h.slice(0,-1);
+            uri = uri.clone();
+            uri.host = h;
+          }
+        } catch(e) {
+          this.log(WARN, "Failed to normalise domain: ");
+          try       {this.log(WARN, input_uri.host);}
+          catch(e2) {this.log(WARN, "bang" + e + " & " + e2 + " & "+ input_uri);}
+        }
+    } catch(e3) {
+      this.log(WARN, "uri.host is explosive!");
+      try       { this.log(WARN, "(" + uri.spec + ")"); } 
+      catch(e4) { this.log(WARN, "(and unprintable)"); }
+    }
+    return uri;
+  },
+
 
   potentiallyApplicableRulesets: function(host) {  
     // Return a list of rulesets that declare targets matching this host
     var i, tmp, t;
     var results = this.global_rulesets;
-	try{
-		if (this.targets[host])
-			results = results.concat(this.targets[host]);
-	}
-	catch(e){	
-		this.log(DBUG,"Couldn't check for ApplicableRulesets: " + e);
-		return [];
-	}
+    try {
+      if (this.targets[host]) results = results.concat(this.targets[host]);
+    } catch(e) {   
+      this.log(DBUG,"Couldn't check for ApplicableRulesets: " + e);
+      return [];
+    }
     // replace each portion of the domain with a * in turn
     var segmented = host.split(".");
     for (i = 0; i < segmented.length; ++i) {
@@ -495,7 +561,7 @@ const HTTPSRules = {
     }
     // now eat away from the left, with *, so that for x.y.z.google.com we
     // check *.z.google.com and *.google.com (we did *.y.z.google.com above)
-    for (i = 1; i < segmented.length - 2; ++i) {
+    for (i = 1; i <= segmented.length - 2; ++i) {
       t = "*." + segmented.slice(i,segmented.length).join(".");
       if (this.targets[t])
         results = results.concat(this.targets[t]);
@@ -506,19 +572,22 @@ const HTTPSRules = {
     return results;
   },
 
-  shouldSecureCookie: function(applicable_list, c) {
+  shouldSecureCookie: function(applicable_list, c, known_https) {
     // Check to see if the Cookie object c meets any of our cookierule citeria
-    // for being marked as secure
-    //this.log(DBUG, "Testing cookie:");
-    //this.log(DBUG, "  name: " + c.name);
-    //this.log(DBUG, "  host: " + c.host);
-    //this.log(DBUG, "  domain: " + c.domain);
-    //this.log(DBUG, "  rawhost: " + c.rawHost);
+    // for being marked as secure.
+    // @applicable_list : an ApplicableList or record keeping
+    // @c : an nsICookie2
+    // @known_https : true if we know the page setting the cookie is https
+
+    this.log(DBUG,"  rawhost: " + c.rawHost + "\n  name: " + c.name + "\n  host" + c.host);
     var i,j;
     var rs = this.potentiallyApplicableRulesets(c.host);
     for (i = 0; i < rs.length; ++i) {
       var ruleset = rs[i];
       if (ruleset.active) {
+        // Never secure a cookie if this page might be HTTP
+        if (!known_https && !this.safeToSecureCookie(c.rawHost))
+          continue;
         for (j = 0; j < ruleset.cookierules.length; j++) {
           var cr = ruleset.cookierules[j];
           if (cr.host_c.test(c.host) && cr.name_c.test(c.name)) {
@@ -535,6 +604,50 @@ const HTTPSRules = {
       }
     }
     return false;
-  }
+  },
 
+  safeToSecureCookie: function(domain) {
+    // Check if the domain might be being served over HTTP.  If so, it isn't
+    // safe to secure a cookie!  We can't always know this for sure because
+    // observing cookie-changed doesn't give us enough context to know the
+    // full origin URI.
+
+    // First, if there are any redirect loops on this domain, don't secure
+    // cookies.  XXX This is not a very satisfactory heuristic.  Sometimes we
+    // would want to secure the cookie anyway, because the URLs that loop are
+    // not authenticated or not important.  Also by the time the loop has been
+    // observed and the domain blacklisted, a cookie might already have been
+    // flagged as secure.
+
+    if (domain in https_blacklist_domains) {
+      this.log(INFO, "cookies for " + domain + "blacklisted");
+      return false;
+    }
+
+    // If we passed that test, make up a random URL on the domain, and see if
+    // we would HTTPSify that.
+
+    try {
+      var nonce_path = "/" + Math.random().toString();
+      nonce_path = nonce_path + nonce_path;
+      var test_uri = "http://" + domain + nonce_path;
+    } catch (e) {
+      this.log(WARN, "explosion in safeToSecureCookie for " + domain + "\n" 
+                      + "(" + e + ")");
+      return false;
+    }
+
+    this.log(INFO, "Testing securecookie applicability with " + test_uri);
+    var rs = this.potentiallyApplicableRulesets(domain);
+    for (i = 0; i < rs.length; ++i) {
+      if (!rs[i].active) continue;
+      var rewrite = rs[i].apply(test_uri);
+      if (rewrite) {
+        this.log(INFO, "Yes: " + rewrite);
+        return true;
+      }
+    }
+    this.log(INFO, "(NO)");
+    return false;
+  }
 };

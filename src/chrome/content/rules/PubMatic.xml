@@ -1,0 +1,19 @@
+<!--
+	Nonfunctional subdomains:
+
+		- (www.)	(301s to http)
+
+-->
+<ruleset name="PubMatic (partial)">
+
+	<target host="*.pubmatic.com" />
+
+
+	<securecookie host="^.*\.pubmatic\.com$" name=".+" />
+
+
+	<!--	ads & simage4: included on 3rd-party websites.	-->
+	<rule from="^http://(ads|apps|origin|simage4)\.pubmatic\.com/"
+		to="https://$1.pubmatic.com/" />
+
+</ruleset>

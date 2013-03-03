@@ -1,5 +1,24 @@
-<ruleset name="Tweakers.net">
-  <target host="tweakers.net" />
+<!--
+	Problematic domains:
 
-  <rule from="^http://tweakers\.net/" to="https://tweakers.net/"/>
+		- www.ic.tweakimg.net		(mismatched)
+
+-->
+<ruleset name="Tweakers.net">
+
+	<target host="tweakers.net" />
+	<target host="*.tweakers.net" />
+	<target host="tweakimg.net" />
+	<target host="*.tweakimg.net" />
+
+
+	<securecookie host="^\.tweakers\.net$" name=".+" />
+
+
+	<rule from="^http://(gathering\.|secure\.|www\.)?tweakers\.net/"
+		to="https://$1tweakers.net/" />
+
+	<rule from="^http://(?:www\.)?(ic\.)?tweakimg\.net/"
+		to="https://$1tweakimg.net/" />
+
 </ruleset>

@@ -1,0 +1,86 @@
+<!--
+	Other Sony rulesets:
+
+		- PlayStation.xml
+		- Sony.se.xml
+		- Sony-europe.com.xml
+		- SonyMobile.xml
+		- SonyMusic.xml
+		- Sony_Pictures_UK.xml
+
+
+	CDN buckets:
+
+		- fp.scea.com.c.footprint.net
+			- fp.scea.com
+			- webassets[a-j]?.scea.com
+
+
+	Nonfunctional domains:
+
+		- esupport.sony.com		(redirects to s01.esupport, which has different data)
+		- www.kb.sony.com
+
+
+	Partially covered domains:
+
+		- (www.)sony.co.uk	(at least some pages redirect to http)
+
+
+	Fully covered domains:
+
+		- shop.sony.co.uk
+		- outlet.sony.co.uk
+
+-->
+<ruleset name="Sony (partial)">
+
+	<target host="webassets.scea.com" />
+	<target host="*.webassets.scea.com" />
+	<target host="sony.com" />
+	<target host="*.sony.com" />
+	<target host="s01.esupport.sony.com" />
+	<target host="sony.co.uk" />
+	<target host="*.sony.co.uk" />
+	<target host="sonyentertainmentnetwork.com" />
+	<target host="*.sonyentertainmentnetwork.com" />
+
+
+	<securecookie host="^.*\.sony\.com$" name=".*" />
+	<securecookie host="^outlet\.sony\.co\.uk$" name=".+" />
+	<securecookie host="^.*\.sonyentertainmentnetwork\.com$" name=".*" />
+
+
+	<!--	- Cert doesn't match
+		- Redirects as so
+				-->
+	<rule from="^https?://(?:www\.)?scea\.com/"
+		to="https://us.playstation.com/" />
+
+	<!--	webassets[a-j]?.scea.com: time out	-->
+	<rule from="^https?://(?:\w+\.)?webassets\.scea\.com/"
+		to="https://secure.webassets.scea.com/" />
+
+	<!--	Cert only matches www.	-->
+	<rule from="^https?://(?:www\.)?sony\.com/"
+		to="https://www.sony.com/" />
+
+	<rule from="^http://(www\.)?sony\.co\.uk/(bravia|res)/"
+		to="https://$1sony.co.uk/$2/" />
+
+	<rule from="^http://(outlet|shop)\.sony\.co\.uk/"
+		to="https://$1.sony.co.uk/" />
+
+	<rule from="^http://s(01\.esupport|tore)\.sony\.com/"
+		to="https://s$1.sony.com/" />
+
+	<rule from="^http://((?:account|www)\.)?sonyentertainmentnetwork\.com/"
+		to="https://$1sonyentertainmentnetwork.com/" />
+
+	<!--	- Cert: *.hs.llnwd.net
+		- Shows blank page
+					-->
+	<rule from="^https?://cdn\.sonyentertainmentnetwork\.com/"
+		to="https://www.sonyentertainmentnetwork.com/" />
+
+</ruleset>

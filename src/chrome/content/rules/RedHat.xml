@@ -1,10 +1,34 @@
-<ruleset name="RedHat">
-  <target host="redhat.com" />
-  <target host="*.redhat.com" />
-  <securecookie host="^(.*\.)?redhat\.com$" name=".*" />
+<!--
+	Other RedHat rulesets:
 
-  <rule from="^http://(?:www\.)?redhat\.com/"
-          to="https://www.redhat.com/"/>
-  <rule from="^http://(access|archive|careers|docs|openshift)\.redhat\.com/"
-	  to="https://$1.redhat.com/"/>
+		- Opensource.com.xml
+
+
+	Nonfunctional subdomains:
+
+		- sources	(times out)
+
+-->
+<ruleset name="RedHat">
+
+	<target host="redhat.com" />
+	<target host="*.redhat.com" />
+	<!--	*s for cross-subdomain cookies.	-->
+	<target host="*.engage.redhat.com" />
+	<target host="*.rhn.redhat.com" />
+	<target host="*.smtrcs.redhat.com" />
+
+
+	<securecookie host="^(.*\.)?redhat\.com$" name=".*" />
+
+
+	<rule from="^http://(?:www\.)?redhat\.com/"
+		to="https://www.redhat.com/" />
+
+	<rule from="^http://(access|archive|bugzilla|careers|docs|engage|openshift|rhn)\.redhat\.com/"
+		to="https://$1.redhat.com/" />
+
+	<rule from="^https?://smtrcs\.redhat\.com/"
+		to="https://redhatopensourcecom-redhatglobal.122.2o7.net/" />
+
 </ruleset>

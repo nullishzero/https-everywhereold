@@ -6,8 +6,15 @@ serial_number = 0
 
 function ApplicableList(logger, doc, domWin) {
   this.domWin = domWin;
+  this.uri = doc.baseURIObject.clone();
+  if (!this.uri) {
+    this.log(WARN,"NULL CLONING URI " + doc);
+    if (doc) 
+      this.log(WARN,"NULL CLONING URI " + doc.baseURIObject);
+    if (doc.baseURIObject) 
+      this.log(WARN,"NULL CLONING URI " + doc.baseURIObject.spec);
+  }
   this.home = doc.baseURIObject.spec; // what doc we're housekeeping for
-  this.doc = doc;
   this.log = logger;
   this.active = {};
   this.breaking = {}; // rulesets with redirection loops
@@ -69,12 +76,12 @@ ApplicableList.prototype = {
 
     // The base URI of the dom tends to be loaded from some /other/
     // ApplicableList, so pretend we're loading it from here.
-    HTTPSEverywhere.instance.https_rules.rewrittenURI(this, this.doc.baseURIObject);
+    HTTPSEverywhere.instance.https_rules.rewrittenURI(this, this.uri);
     this.log(DBUG, "populating using alist #" + this.serial);
     this.document = document;
-	
-	var https_everywhere = CC["@eff.org/https-everywhere;1"].getService(Components.interfaces.nsISupports).wrappedJSObject;	  
-	var o_httpsprefs = https_everywhere.get_prefs();
+    
+    var https_everywhere = CC["@eff.org/https-everywhere;1"].getService(Components.interfaces.nsISupports).wrappedJSObject;   
+    var o_httpsprefs = https_everywhere.get_prefs();
    
     // get the menu popup
     this.menupopup = menupopup;
@@ -83,19 +90,19 @@ ApplicableList.prototype = {
     while(this.menupopup.firstChild.tagName != "menuseparator") {
       this.menupopup.removeChild(this.menupopup.firstChild);
     }
-	
-	// add global enable/disable toggle button	
-	var strings = document.getElementById("HttpsEverywhereStrings");
-	
-	var enableLabel = document.createElement('menuitem');
-	var text = strings.getString("https-everywhere.menu.globalDisable");
-	if(!o_httpsprefs.getBoolPref("globalEnabled"))
-		text = strings.getString("https-everywhere.menu.globalEnable");
-		
-	enableLabel.setAttribute('label', text);
-    enableLabel.setAttribute('command', 'https-everywhere-menuitem-globalEnableToggle');	
-	this.prepend_child(enableLabel);
-	
+    
+    // add global enable/disable toggle button  
+    var strings = document.getElementById("HttpsEverywhereStrings");
+    
+    var enableLabel = document.createElement('menuitem');
+    var text = strings.getString("https-everywhere.menu.globalDisable");
+    if (!o_httpsprefs.getBoolPref("globalEnabled"))
+        text = strings.getString("https-everywhere.menu.globalEnable");
+        
+    enableLabel.setAttribute('label', text);
+    enableLabel.setAttribute('command', 'https-everywhere-menuitem-globalEnableToggle');    
+    this.prepend_child(enableLabel);
+    
     // add the label at the top
     var any_rules = false
     for (var x in this.all) {
@@ -103,13 +110,17 @@ ApplicableList.prototype = {
       break;
     }
     var label = document.createElement('menuitem');
-    if (any_rules) {
-        label.setAttribute('label', 'Enable / Disable Rules');
-    } else {
-      if (!weird) label.setAttribute('label', '(No Rules for This Page)');
-      else        label.setAttribute('label', '(Rules for This Page Unknown)');
-    }
+    label.setAttribute('label', strings.getString('https-everywhere.menu.enableDisable'));
     label.setAttribute('command', 'https-everywhere-menuitem-preferences');
+    var label2 = false;
+    if (!any_rules) {
+      label2 = document.createElement('menuitem');
+      if (!weird) text = strings.getString('https-everywhere.menu.noRules');
+      else        text = strings.getString('https-everywhere.menu.unknownRules');
+      label2.setAttribute('label', text);
+      label2.setAttribute('command', 'https-everywhere-menuitem-preferences');
+      label2.setAttribute('style', 'color:#909090;');
+    }
 
     // create a commandset if it doesn't already exist
     this.commandset = document.getElementById('https-everywhere-commandset');
@@ -124,37 +135,37 @@ ApplicableList.prototype = {
         this.commandset.removeChild(this.commandset.firstChild);
     }
 
-	var wm = Components.classes["@mozilla.org/appshell/window-mediator;1"]
+    var wm = Components.classes["@mozilla.org/appshell/window-mediator;1"]
                      .getService(Components.interfaces.nsIWindowMediator);
-					 
-	var domWin = wm.getMostRecentWindow("navigator:browser").content.document.defaultView.top;	
-	var location = domWin.document.baseURIObject.asciiSpec; //full url, including about:certerror details
-	
-	if(location.substr(0, 6) == "about:"){
-		//"From" portion of the rule is retrieved from the location bar via document.getElementById("urlbar").value
-		  
-		var fromHost = document.getElementById("urlbar").value;	 
-		
-	    //scheme must be trimmed out to check for applicable rulesets		
-		if(fromHost.indexOf("://") != -1)
-			fromHost = fromHost.substr(fromHost.indexOf("://") + 3, fromHost.length);
-			
-		//trim off any page locations - we only want the host - e.g. domain.com
-		if(fromHost.indexOf("/") != -1)
-			fromHost = fromHost.substr(0, fromHost.indexOf("/"));
-					   
-		//Search for applicable rulesets for the host listed in the location bar
-		var alist = HTTPSRules.potentiallyApplicableRulesets(fromHost);		
-		
-		for (var i = 0 ; i < alist.length ; i++){
-			//For each applicable rulset, determine active/inactive, and append to proper list.
-			if(o_httpsprefs.getBoolPref(alist[i].name))
-				this.active_rule(alist[i]);
-			else
-				this.inactive_rule(alist[i]);					
-		}	
-	}	
-	
+                     
+    var domWin = wm.getMostRecentWindow("navigator:browser").content.document.defaultView.top;  
+    var location = domWin.document.baseURIObject.asciiSpec; //full url, including about:certerror details
+    
+    if(location.substr(0, 6) == "about:"){
+        //"From" portion of the rule is retrieved from the location bar via document.getElementById("urlbar").value
+          
+        var fromHost = document.getElementById("urlbar").value;  
+        
+        //scheme must be trimmed out to check for applicable rulesets       
+        if(fromHost.indexOf("://") != -1)
+            fromHost = fromHost.substr(fromHost.indexOf("://") + 3, fromHost.length);
+            
+        //trim off any page locations - we only want the host - e.g. domain.com
+        if(fromHost.indexOf("/") != -1)
+            fromHost = fromHost.substr(0, fromHost.indexOf("/"));
+                       
+        // Search for applicable rulesets for the host listed in the location bar
+        var plist = HTTPSRules.potentiallyApplicableRulesets(fromHost);     
+        
+        for (var i = 0 ; i < plist.length ; i++){
+            //For each applicable rulset, determine active/inactive, and append to proper list.
+            if(o_httpsprefs.getBoolPref(plist[i].name))
+                this.active_rule(plist[i]);
+            else
+                this.inactive_rule(plist[i]);                   
+        }   
+    }   
+    
     // add all applicable commands
     for(var x in this.breaking) 
       this.add_command(this.breaking[x]); 
@@ -165,7 +176,7 @@ ApplicableList.prototype = {
     for(var x in this.inactive) 
       this.add_command(this.inactive[x]);
 
-	if(o_httpsprefs.getBoolPref("globalEnabled")){
+    if(o_httpsprefs.getBoolPref("globalEnabled")){
        // add all the menu items
        for (var x in this.inactive)
           this.add_menuitem(this.inactive[x], 'inactive');
@@ -177,12 +188,13 @@ ApplicableList.prototype = {
        for (var x in this.active) 
           if (!(x in this.breaking))
               this.add_menuitem(this.active[x], 'active');
-	   for (var x in this.breaking)
-		  this.add_menuitem(this.breaking[x], 'breaking');
-		  
+       for (var x in this.breaking)
+          this.add_menuitem(this.breaking[x], 'breaking');
+          
+       if (label2) this.prepend_child(label2);
        this.prepend_child(label);
-	}
-	
+    }
+    
   },
 
   prepend_child: function(node) {
@@ -206,13 +218,20 @@ ApplicableList.prototype = {
     item.setAttribute('command', rule.id+'-command');
     item.setAttribute('class', type+'-item menuitem-iconic');
     item.setAttribute('label', rule.name);
+
+    // we can get confused if rulesets have their state changed after the
+    // ApplicableList was constructed
+    if (!rule.active && (type == 'active' || type == 'moot'))
+      type = 'inactive';
+    if (rule.active && type == 'inactive')
+      type = 'moot';
     
     // set the icon
     var image_src;
     if (type == 'active') image_src = 'tick.png';
     else if (type == 'inactive') image_src = 'cross.png';
     else if (type == 'moot') image_src = 'tick-moot.png';
-    else if (type == 'breaking') image_src = 'tick-red.png';
+    else if (type == 'breaking') image_src = 'loop.png';
     item.setAttribute('image', 'chrome://https-everywhere/skin/'+image_src);
 
     // all done

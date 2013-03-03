@@ -1,6 +1,13 @@
-<!-- banner network. -->
-<ruleset name="Adtech.de">
-	<target host="adserver.adtech.de" />
-	<rule from="^http://adserver\.adtech\.de/" to="https://adserver.adtech.de/"/>
+<!--	banner network.
+-->
+<ruleset name="Adtech.de (breaks videos)" default_off="https://eff.org/r.a6rZ">
+
+	<target host="*.adtech.de"/>
+
+  <exclusion pattern="http://(adserver\.)?adtech\.de/crossdomain\.xml" />
+
+	<rule from="^http://adserver\.adtech\.de/"
+		to="https://adserver.adtech.de/"/>
+
 </ruleset>
 

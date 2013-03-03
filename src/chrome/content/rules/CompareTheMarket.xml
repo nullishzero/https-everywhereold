@@ -1,8 +1,21 @@
-<ruleset name="CompareTheMarket">
-  <target host="comparethemarket.com" />
-  <target host="www.comparethemarket.com" />
+<!--
+	^ times out
 
-  <securecookie host="^(.+\.)?comparethemarket\.com$" name=".*"/>
+-->
+<ruleset name="Compare The Market">
 
-  <rule from="^http://(?:www\.)?comparethemarket\.com/" to="https://www.comparethemarket.com/"/>
+	<target host="email-comparethemarket.com" />
+	<target host="comparethemarket.com" />
+	<target host="*.comparethemarket.com" />
+
+
+	<securecookie host="^(?:.+\.|email-)?comparethemarket\.com$" name=".+" />
+
+
+	<rule from="^https?://(?:www\.)?comparethemarket\.com/"
+		to="https://www.comparethemarket.com/" />
+
+	<rule from="^http://(quote\.|email-)comparethemarket\.com/"
+		to="https://$1comparethemarket.com/" />
+
 </ruleset>

@@ -1,15 +1,103 @@
-<ruleset name="AddThis">
-  <target host="*.addthis.com" />
-  <target host="addthis.com" />
+<!--
+	Other Clearspring rulesets:
 
-  <rule from="^http://(?:www\.)?addthis\.com/bookmark\.php"
-	  to="https://www.addthis.com/bookmark.php"/>
-  <rule from="^http://api\.addthis\.com/"
-	  to="https://api.addthis.com/"/>
-  <rule from="^http://s(3|5|7|9)\.addthis\.com/"
-	  to="https://s$1.addthis.com/"/>
-  <rule from="^http://ds\.addthis\.com/"
-	  to="https://ds.addthis.com/" />
-  <rule from="^http://cache\.addthis\.com/"
-	  to="https://cache.addthis.com/" />
+		- XGraph.xml
+
+
+	CDN buckets:
+
+		- wildcard.addthis.com.edgekey.net/...
+			- e2943.e11.akamaiedge.net/...
+
+		- wildcard.addthiscdn.com.edgekey.net/...
+			- e1303.c.akamaiedge.net/...
+
+	Nonfunctional domains:
+
+		- support.addthis.com	(cert: *.assistly.com; 301s to http)
+			- So does addthis.assistly.com  & addthis.desk.com 
+
+
+	Problematic domains:
+
+		- ct5.addthis.com	(404, CN: gp1.wac.edgecastcdn.net)
+
+
+	Partially covered domains:
+
+		- (www.)addthis.com	(some pages redirect to http)
+
+
+	Fully covered domains:
+
+		- addthis.com subdomains:
+
+			- api
+			- cache
+			- cf
+			- ct5		(→ s5.addthis.com)
+			- ds
+			- s[3579]
+			- secure
+
+		- cache.addthiscdn.com
+
+-->
+<ruleset name="AddThis (partial)">
+
+	<target host="addthis.com" />
+	<target host="*.addthis.com" />
+	<target host="cache.addthiscdn.com" />
+
+
+	<securecookie host="^\.addthis.com$" name="^(?:__atuvc|uid)$" />
+
+
+	<!--	These paths 302 to http:
+
+			- about$
+			- about/team$
+			- advertising-choices$
+			- browser-extensions$
+			- careers$
+			- contact$
+			- get$
+			- get/welcome$
+			- logos$
+			- privacy/opt-out$
+			- privacy/partners$
+			- privacy/privacy-policy$
+			- technology$
+			- technology/web-intents$
+			- tos$
+
+		These paths don't:
+
+			- blog$
+			- blog/
+			- download/
+			- get/just-analytics
+			- get/sharing
+			- get/trending
+			- images/
+			- landing$
+			- login
+			- press$
+			- register
+					-->
+	<rule from="^http://(?:www\.)?addthis\.com/(bookmark\.php|blog(?:$|\?|/)|download/|images/|(?:get/(?:just-analytics|sharing|trending)|landing|login|press|register)(?:$|\?))"
+		to="https://www.addthis.com/$1" />
+
+	<rule from="^http://(?:www\.)?addthis\.com/get($|\?)"
+		to="https://www.addthis.com/get/sharing$1" />
+
+	<rule from="^http://(api|cache|cf|ds|s[3579]|secure)\.addthis\.com/"
+		to="https://$1.addthis.com/" />
+
+	<rule from="^https?://ct5\.addthis\.com/"
+		to="https://s5.addthis.com/" />
+
+	<rule from="^http://cache\.addthiscdn\.com/"
+		to="https://cache.addthiscdn.com/" />
+
 </ruleset>

@@ -1,0 +1,26 @@
+<ruleset name="Etsy">
+
+	<target host="etsy.com" />
+	<target host="www.etsy.com" />
+	<!--
+		CDN hosts
+				-->
+	<target host="*.etsystatic.com" />
+
+
+	<!--	This site has rewrites back to HTTP and various other issues.
+		That makes asecurecookie directive highly inadvisable.
+
+	<securecookie host="^\.etsy\.com$" name=".+" /-->
+
+
+	<rule from="^http://(www\.)?etsy\.com/"
+		to="https://$1etsy.com/" />
+
+	<rule from="^http://(img\d|site|www)\.etsystatic\.com/"
+		to="https://$1.etsystatic.com/" />
+
+	<!--rule from="^http://(www\.)?etsy\.com/([\w-]+/)?(asset|file|image|stylesheet)s/"
+		to="https://$1etsy.com/$2$3s/" /-->
+
+</ruleset>

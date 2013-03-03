@@ -14,11 +14,18 @@ https_domains = {};              // maps domain patterns (with at most one
 https_everywhere_blacklist = {}; // URLs we've given up on rewriting because
                                  // of redirection loops
 
+https_blacklist_domains = {};    // domains for which there is at least one
+                                 // blacklisted URL
+
 //
 const CI = Components.interfaces;
 const CC = Components.classes;
 const CU = Components.utils;
 const CR = Components.results;
+const Ci = Components.interfaces;
+const Cc = Components.classes;
+const Cu = Components.utils;
+const Cr = Components.results;
 
 const CP_SHOULDPROCESS = 4;
 
@@ -45,13 +52,11 @@ const INCLUDE = function(name) {
     for (var j = 0, len = arguments.length; j < len; j++)
       INCLUDE(arguments[j]);
   else if (!_INCLUDED[name]) {
-    try {
-      LOADER.loadSubScript("chrome://https-everywhere/content/code/"
-              + name + ".js");
-      _INCLUDED[name] = true;
-    } catch(e) {
-      dump("INCLUDE " + name + ": " + e + "\n");
-    }
+    // we used to try/catch here, but that was less useful because it didn't
+    // produce line numbers for syntax errors
+    LOADER.loadSubScript("chrome://https-everywhere/content/code/"
+            + name + ".js");
+    _INCLUDED[name] = true;
   }
 }
 
@@ -91,11 +96,25 @@ const WHERE_UNTRUSTED = 1;
 const WHERE_TRUSTED = 2;
 const ANYWHERE = 3;
 
-const DUMMYOBJ = {};
+const N_COHORTS = 1000; 
+
+const DUMMY_OBJ = {};
+DUMMY_OBJ.wrappedJSObject = DUMMY_OBJ;
+const DUMMY_FUNC = function() {}
+const DUMMY_ARRAY = [];
 
 const EARLY_VERSION_CHECK = !("nsISessionStore" in CI && typeof(/ /) === "object");
 
 const OBSERVER_TOPIC_URI_REWRITE = "https-everywhere-uri-rewrite";
+
+// XXX: Better plan for this?
+// We need it to exist to make our updates of ChannelReplacement.js easier.
+var ABE = {
+  consoleDump: false,
+  log: function(str) {
+    https_everywhereLog(WARN, str);
+  }
+};
 
 function xpcom_generateQI(iids) {
   var checks = [];
@@ -115,7 +134,7 @@ function xpcom_checkInterfaces(iid,iids,ex) {
   throw ex;
 }
 
-INCLUDE('IOUtil', 'HTTPSRules', 'HTTPS', 'Thread', 'ApplicableList');
+INCLUDE('ChannelReplacement', 'IOUtil', 'HTTPSRules', 'HTTPS', 'Thread', 'ApplicableList');
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
@@ -169,7 +188,7 @@ function HTTPSEverywhere() {
   // we rewrite.
   this.obsService = CC["@mozilla.org/observer-service;1"]
                     .getService(Components.interfaces.nsIObserverService);
-					
+                    
   if(this.prefs.getBoolPref("globalEnabled")){
     this.obsService.addObserver(this, "profile-before-change", false);
     this.obsService.addObserver(this, "profile-after-change", false);
@@ -193,9 +212,9 @@ const TYPE_XBL = 9;
 const TYPE_PING = 10;
 const TYPE_XMLHTTPREQUEST = 11;
 const TYPE_OBJECT_SUBREQUEST = 12;
-const TYPE_DTD	= 13;
+const TYPE_DTD  = 13;
 const TYPE_FONT = 14;
-const TYPE_MEDIA = 15; 	
+const TYPE_MEDIA = 15;  
 // --------------
 // REJECT_SERVER = -3
 // ACCEPT = 1
@@ -327,18 +346,6 @@ HTTPSEverywhere.prototype = {
     return value;
   },
 
-  // This function is registered solely to detect favicon loads by virtue
-  // of their failure to pass through this function.
-  onStateChange: function(wp, req, stateFlags, status) {
-    if (stateFlags & WP_STATE_START) {
-      if (req instanceof CI.nsIChannel) {
-        if (req instanceof CI.nsIHttpChannel) {
-          PolicyState.attach(req);
-        }
-      }
-    }
-  },
-
   // We use onLocationChange to make a fresh list of rulesets that could have
   // applied to the content in the current page (the "applicable list" is used
   // for the context menu in the UI).  This will be appended to as various
@@ -367,7 +374,7 @@ HTTPSEverywhere.prototype = {
     try {
       var domWin = nc.getInterface(CI.nsIDOMWindow);
     } catch(e) {
-      this.log(INFO, "exploded getting DOMWin for " + channel.URI.spec);
+      this.log(INFO, "No window associated with request: " + channel.URI.spec);
       return null;
     }
     if (!domWin) {
@@ -414,7 +421,6 @@ HTTPSEverywhere.prototype = {
     return alist;
   },
 
-
   observe: function(subject, topic, data) {
     // Top level glue for the nsIObserver API
     var channel = subject;
@@ -422,12 +428,13 @@ HTTPSEverywhere.prototype = {
 
     if (topic == "http-on-modify-request") {
       if (!(channel instanceof CI.nsIHttpChannel)) return;
-	  
+      
       this.log(DBUG,"Got http-on-modify-request: "+channel.URI.spec);
       var lst = this.getApplicableListForChannel(channel);
       if (channel.URI.spec in https_everywhere_blacklist) {
         this.log(DBUG, "Avoiding blacklisted " + channel.URI.spec);
-        lst.breaking_rule(https_everywhere_blacklist[channel.URI.spec]);
+        if (lst) lst.breaking_rule(https_everywhere_blacklist[channel.URI.spec])
+        else        this.log(WARN,"Failed to indicate breakage in content menu");
         return;
       }
       HTTPS.replaceChannel(lst, channel);
@@ -435,7 +442,7 @@ HTTPSEverywhere.prototype = {
          this.log(DBUG, "Got http-on-examine-response @ "+ (channel.URI ? channel.URI.spec : '') );
          HTTPS.handleSecureCookies(channel);
     } else if (topic == "http-on-examine-merged-response") {
-		 this.log(DBUG, "Got http-on-examine-merged-response ");
+         this.log(DBUG, "Got http-on-examine-merged-response ");
          HTTPS.handleSecureCookies(channel);
     } else if (topic == "cookie-changed") {
       // Javascript can add cookies via document.cookie that are insecure.
@@ -469,41 +476,67 @@ HTTPSEverywhere.prototype = {
       Thread.hostRunning = false;
     } else if (topic == "profile-after-change") {
       this.log(DBUG, "Got profile-after-change");
-	  
-	  if(this.prefs.getBoolPref("globalEnabled")){
-		OS.addObserver(this, "cookie-changed", false);
-		OS.addObserver(this, "http-on-modify-request", false);
-		OS.addObserver(this, "http-on-examine-merged-response", false);
-		OS.addObserver(this, "http-on-examine-response", false);
-		
-		var dls = CC['@mozilla.org/docloaderservice;1']
-			.getService(CI.nsIWebProgress);
-		dls.addProgressListener(this, CI.nsIWebProgress.NOTIFY_STATE_REQUEST |
-                                    CI.nsIWebProgress.NOTIFY_LOCATION);
-		this.log(INFO,"ChannelReplacement.supported = "+ChannelReplacement.supported);
+      
+      if(this.prefs.getBoolPref("globalEnabled")){
+        OS.addObserver(this, "cookie-changed", false);
+        OS.addObserver(this, "http-on-modify-request", false);
+        OS.addObserver(this, "http-on-examine-merged-response", false);
+        OS.addObserver(this, "http-on-examine-response", false);
+        
+        var dls = CC['@mozilla.org/docloaderservice;1']
+            .getService(CI.nsIWebProgress);
+        dls.addProgressListener(this, CI.nsIWebProgress.NOTIFY_LOCATION);
+        this.log(INFO,"ChannelReplacement.supported = "+ChannelReplacement.supported);
 
-		HTTPSRules.init();
+        HTTPSRules.init();
 
-		Thread.hostRunning = true;
-		var catman = Components.classes["@mozilla.org/categorymanager;1"]
+        Thread.hostRunning = true;
+        var catman = Components.classes["@mozilla.org/categorymanager;1"]
            .getService(Components.interfaces.nsICategoryManager);
-		// hook on redirections (non persistent, otherwise crashes on 1.8.x)
-		catman.addCategoryEntry("net-channel-event-sinks", SERVICE_CTRID,
-			SERVICE_CTRID, false, true);
-	  }
+        // hook on redirections (non persistent, otherwise crashes on 1.8.x)
+        catman.addCategoryEntry("net-channel-event-sinks", SERVICE_CTRID,
+            SERVICE_CTRID, false, true);
+      }
     } else if (topic == "sessionstore-windows-restored") {
-      var ssl_observatory = CC["@eff.org/ssl-observatory;1"]
-                        .getService(Components.interfaces.nsISupports)
-                        .wrappedJSObject;
-      // Show the popup at most once.  Users who enabled the Observatory before
-      // a version that would have shown it to them, don't need to see it
-      // again.
-      var shown = ssl_observatory.myGetBoolPref("popup_shown");
-      var enabled = ssl_observatory.myGetBoolPref("enabled");
-      if (!shown && !enabled) 
-        this.chrome_opener("chrome://https-everywhere/content/observatory-popup.xul");
+      this.maybeShowObservatoryPopup();
     }
     return;
+  },
+
+  maybeShowObservatoryPopup: function() {
+    // Show the popup at most once.  Users who enabled the Observatory before
+    // a version that would have shown it to them, don't need to see it
+    // again.
+    var ssl_observatory = CC["@eff.org/ssl-observatory;1"]
+                      .getService(Components.interfaces.nsISupports)
+                      .wrappedJSObject;
+    var shown = ssl_observatory.myGetBoolPref("popup_shown");
+    var enabled = ssl_observatory.myGetBoolPref("enabled");
+    var that = this;
+    var obs_popup_callback = function(result) {
+      if (result) that.log(INFO, "Got positive proxy test.");
+      else        that.log(INFO, "Got negative proxy text.");
+      // We are now ready to show the popup in its most informative state
+      that.chrome_opener("chrome://https-everywhere/content/observatory-popup.xul");
+    };
+    if (!shown && !enabled)
+      ssl_observatory.registerProxyTestNotification(obs_popup_callback);
+  },
+
+  getExperimentalFeatureCohort: function() {
+    // This variable is used for gradually turning on features for testing and
+    // scalability purposes.  It is a random integer [0,N_COHORTS) generated
+    // once and stored thereafter.
+    // 
+    // This is not currently used/called in the development branch
+    var cohort;
+    try {
+      cohort = this.prefs.getIntPref("experimental_feature_cohort");
+    } catch(e) {
+      cohort = Math.round(Math.random() * N_COHORTS);
+      this.prefs.setIntPref("experimental_feature_cohort", cohort);
+    }
+    return cohort;
   },
 
   // nsIChannelEventSink implementation
@@ -540,8 +573,8 @@ HTTPSEverywhere.prototype = {
   },
 
   asyncOnChannelRedirect: function(oldChannel, newChannel, flags, callback) {
-		this.onChannelRedirect(oldChannel, newChannel, flags);
-		callback.onRedirectVerifyCallback(0);
+        this.onChannelRedirect(oldChannel, newChannel, flags);
+        callback.onRedirectVerifyCallback(0);
   },
 
   // These implement the nsIContentPolicy API; they allow both yes/no answers
@@ -630,65 +663,64 @@ HTTPSEverywhere.prototype = {
   },
 
   toggleEnabledState: function() {
-	if(this.prefs.getBoolPref("globalEnabled")){	
-		try{	
-			this.obsService.removeObserver(this, "profile-before-change");
-			this.obsService.removeObserver(this, "profile-after-change");
-			this.obsService.removeObserver(this, "sessionstore-windows-restored");		
-			OS.removeObserver(this, "cookie-changed");
-			OS.removeObserver(this, "http-on-modify-request");
-			OS.removeObserver(this, "http-on-examine-merged-response");
-			OS.removeObserver(this, "http-on-examine-response");  
-			
-			var catman = Components.classes["@mozilla.org/categorymanager;1"]
+    if(this.prefs.getBoolPref("globalEnabled")){    
+        try{    
+            this.obsService.removeObserver(this, "profile-before-change");
+            this.obsService.removeObserver(this, "profile-after-change");
+            this.obsService.removeObserver(this, "sessionstore-windows-restored");      
+            OS.removeObserver(this, "cookie-changed");
+            OS.removeObserver(this, "http-on-modify-request");
+            OS.removeObserver(this, "http-on-examine-merged-response");
+            OS.removeObserver(this, "http-on-examine-response");  
+            
+            var catman = Components.classes["@mozilla.org/categorymanager;1"]
            .getService(Components.interfaces.nsICategoryManager);
-			catman.deleteCategoryEntry("net-channel-event-sinks", SERVICE_CTRID, true);
-						
-			var dls = CC['@mozilla.org/docloaderservice;1']
-			.getService(CI.nsIWebProgress);
-			dls.removeProgressListener(this);
-			
-			this.prefs.setBoolPref("globalEnabled", false);
-		}
-		catch(e){
-			this.log(WARN, "Couldn't remove observers: " + e);			
-		}
-	}
-	else{	
-		try{	  
-			this.obsService.addObserver(this, "profile-before-change", false);
-			this.obsService.addObserver(this, "profile-after-change", false);
-			this.obsService.addObserver(this, "sessionstore-windows-restored", false);		
-			OS.addObserver(this, "cookie-changed", false);
-			OS.addObserver(this, "http-on-modify-request", false);
-			OS.addObserver(this, "http-on-examine-merged-response", false);
-			OS.addObserver(this, "http-on-examine-response", false);  
-			
-			var dls = CC['@mozilla.org/docloaderservice;1']
-			.getService(CI.nsIWebProgress);
-			dls.addProgressListener(this, CI.nsIWebProgress.NOTIFY_STATE_REQUEST |
-                                    CI.nsIWebProgress.NOTIFY_LOCATION);
-			
-			this.log(INFO,"ChannelReplacement.supported = "+ChannelReplacement.supported);
+            catman.deleteCategoryEntry("net-channel-event-sinks", SERVICE_CTRID, true);
+                        
+            var dls = CC['@mozilla.org/docloaderservice;1']
+            .getService(CI.nsIWebProgress);
+            dls.removeProgressListener(this);
+            
+            this.prefs.setBoolPref("globalEnabled", false);
+        }
+        catch(e){
+            this.log(WARN, "Couldn't remove observers: " + e);          
+        }
+    }
+    else{   
+        try{      
+            this.obsService.addObserver(this, "profile-before-change", false);
+            this.obsService.addObserver(this, "profile-after-change", false);
+            this.obsService.addObserver(this, "sessionstore-windows-restored", false);      
+            OS.addObserver(this, "cookie-changed", false);
+            OS.addObserver(this, "http-on-modify-request", false);
+            OS.addObserver(this, "http-on-examine-merged-response", false);
+            OS.addObserver(this, "http-on-examine-response", false);  
+            
+            var dls = CC['@mozilla.org/docloaderservice;1']
+            .getService(CI.nsIWebProgress);
+            dls.addProgressListener(this, CI.nsIWebProgress.NOTIFY_LOCATION);
+            
+            this.log(INFO,"ChannelReplacement.supported = "+ChannelReplacement.supported);
 
-			HTTPSRules.init();
+            HTTPSRules.init();
 
-			if(!Thread.hostRunning)
-				Thread.hostRunning = true;
-			
-			var catman = Components.classes["@mozilla.org/categorymanager;1"]
-			.getService(Components.interfaces.nsICategoryManager);
-			// hook on redirections (non persistent, otherwise crashes on 1.8.x)
-			catman.addCategoryEntry("net-channel-event-sinks", SERVICE_CTRID,
-				SERVICE_CTRID, false, true);			
-			
-			HTTPSRules.init();			
-			this.prefs.setBoolPref("globalEnabled", true);
-		}
-		catch(e){
-			this.log(WARN, "Couldn't add observers: " + e);			
-		}
-	}
+            if(!Thread.hostRunning)
+                Thread.hostRunning = true;
+            
+            var catman = Components.classes["@mozilla.org/categorymanager;1"]
+            .getService(Components.interfaces.nsICategoryManager);
+            // hook on redirections (non persistent, otherwise crashes on 1.8.x)
+            catman.addCategoryEntry("net-channel-event-sinks", SERVICE_CTRID,
+                SERVICE_CTRID, false, true);            
+            
+            HTTPSRules.init();          
+            this.prefs.setBoolPref("globalEnabled", true);
+        }
+        catch(e){
+            this.log(WARN, "Couldn't add observers: " + e);         
+        }
+    }
   }
 };
 
@@ -720,3 +752,5 @@ if (XPCOMUtils.generateNSGetFactory)
     var NSGetFactory = XPCOMUtils.generateNSGetFactory([HTTPSEverywhere]);
 else
     var NSGetModule = XPCOMUtils.generateNSGetModule([HTTPSEverywhere]);
+
+/* vim: set tabstop=4 expandtab: */

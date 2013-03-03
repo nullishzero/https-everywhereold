@@ -1,7 +1,27 @@
-<ruleset name="KDE (partial)">
-  <target host="bugs.kde.org" />
-  <target host="mail.kde.org" />
-  <target host="blogs.kde.org" />
+<!--
+	Nonfunctional subdomains:
 
-	<rule from="^http://(bugs|mail|blogs)\.kde\.org/" to="https://$1.kde.org/"/>
+		- developer
+		- ev
+		- manifesto
+		- websvn
+		- wiki
+		- (www.)
+
+-->
+<ruleset name="KDE (partial)">
+
+	<target host="*.kde.org" />
+	<!--
+		* for cross-domain cookies.
+						-->
+	<target host="*.forum.kde.org" />
+
+
+	<securecookie host="^.+\.kde\.org$" name=".+" />
+
+
+	<rule from="^http://(blogs|bugs|cdn|community|dot|forum|identity|mail)\.kde\.org/"
+		to="https://$1.kde.org/" />
+
 </ruleset>

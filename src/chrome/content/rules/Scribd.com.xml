@@ -1,6 +1,152 @@
-<ruleset name="Scribd.com">
-  <target host="scribd.com" />
-  <target host="www.scribd.com" />
+<!--
+	For rules which break logging in, see Scribd.com-break-login.xml.
 
-  <rule from="^http://(?:www\.)?scribd\.com/" to="https://www.scribd.com/" />
+
+	CDN buckets:
+
+		- s3.amazonaws.com/assets.scribd.com/
+		- s3.amazonaws.com/html.scribd.com/
+
+		- s3.amazonaws.com/reflow.scribd.com/...
+
+			- img.scribd.com
+
+		- s3.amazonaws.com/sprited-images.scribd.com/
+		- s3.amazonaws.com/s3.scribd.com/
+		- d.scribd.com.cdngc.net
+
+		- s.scribd.com.cdngc.net/...
+
+			- s[5-8].scribdassets.com
+
+		- html.scribdassets.com.cdngc.net/...
+
+			- fonts[1-4].scribdassets.com
+			- html.scribdassets.com
+			- html[1-4].scribdassets.com
+			- htmlimg.scribdassets.com
+			- htmlimg[1-4].scribdassets.com
+
+		- img.scribdassets.com.cdngc.net
+
+			- img.scribdassets.com
+			- img[1-4].scribdassets.com
+
+		- imgv2.scribdassets.com.cdngc.net/..
+
+			- imgv2.scribdassets.com
+			- imgv2-[1-4].scribdassets.com
+
+		- s.scribd.com.edgesuite.net/...
+
+			- s[1-4].scribdassets.com
+
+
+	Nonfunctional domains:
+
+		- scribd.com subdomains:
+
+			- d *
+			- img				(AmazonWS: "NoSuchBucket")
+			- rat				(times out)
+			- rs[15]?			(times out, alias for rat)
+
+		- scribdassets.com subdomains:
+
+			- img **
+			- imgv2 *
+			- imgv2-[1-4] **
+
+	* 403, CN: ssl2.cdngc.net
+	** 403, CN: ssl.cdngc.net
+
+
+	Problematic domains:
+
+		- scribd.com subdomains:
+
+			- www
+
+				- Many pages redirect to http
+				- docs don't, but login from docs does and so breaks
+
+			- html				(mismatched, CN: s3.amazonaws.com)
+			- s *
+
+		- scribdassets.com subdomains:
+
+			- fonts[1-4] **
+			- html **
+			- html[1-4] **
+			- htmlimg **
+			- htmlimg[1-4] **
+			- s[1-4]			(works, akamai)
+			- s[56] **
+			- s[78] *
+
+
+	* 403, CN: ssl.cdngc.net
+	** 403, CN: ssl2.cdngc.net
+
+
+	Fully covered domains:
+
+		- scribd.com subdomains:
+
+			- fonts
+			- html			(→ s3.amazonaws.com/html.scribd.com/)
+			- origin-s
+			- s			(→ origin-s)
+			- sprinted-images	(→ s3.amazonaws.com/sprinted-images.scribd.com/)
+
+		- scribdassets.com subdomains:
+
+			- html			(→ s3.amazonaws.com/html.scribd.com/)
+			- html[1-4]		(→ s3.amazonaws.com/html.scribd.com/)
+			- htmlimg		(→ s3.amazonaws.com/html.scribd.com/)
+			- htmlimg[1-4]		(→ s3.amazonaws.com/html.scribd.com/)
+			- s[1-8]		(→ origin-s.scribd.com)
+
+
+	NB: Login is broken for https pages.
+
+
+	These paths don't redirect to http, and aren't pages (and thus won't break login):
+
+		- images/
+		- ssi/
+
+	These do:
+
+		- [\w-]+$
+		- [\w-]+\?
+		- documents/\d+/pingback$
+		- login
+		.+/login
+		- options/exposed_to_client.js
+
+-->
+<ruleset name="Scribd.com (partial)">
+
+	<target host="scribd.com" />
+	<target host="*.scribd.com" />
+		<exclusion pattern="^http://(?:www\.)?scribd\.com/(?!images/|ssi/)" />
+	<target host="*.scribdassets.com" />
+
+
+	<rule from="^http://(?:www\.)?scribd\.com/"
+		to="https://www.scribd.com/" />
+
+	<rule from="^http://fonts\d?\.scribd(?:assets)?\.com/"
+		to="https://fonts.scribd.com/" />
+
+	<rule from="^http://html(?:img)?\d?\.scribd(?:assets)?\.com/"
+		to="https://s3.amazonaws.com/html.scribd.com/" />
+
+	<rule from="^http://s\d?\.scribd(?:assets)?\.com/"
+		to="https://origin-s.scribd.com/" />
+
+	<rule from="^https?://sprited-images\.scribd\.com/"
+		to="https://s3.amazonaws.com/sprited-images.scribd.com/" />
+
 </ruleset>

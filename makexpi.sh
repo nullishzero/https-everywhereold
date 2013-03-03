@@ -16,21 +16,48 @@ APP_NAME=https-everywhere
 
 cd "`dirname $0`"
 
+[ -d pkg ] || mkdir pkg
+
 # If the command line argument is a tag name, check that out and build it
-if [ -n "$1" ]; then
+if [ -n "$1" ] && [ "$2" != "--no-recurse" ] ; then
 	BRANCH=`git branch | head -n 1 | cut -d \  -f 2-`
 	SUBDIR=checkout
 	[ -d $SUBDIR ] || mkdir $SUBDIR
 	cp -r -f -a .git $SUBDIR
 	cd $SUBDIR
 	git reset --hard "$1"
+  # Use the version of the build script that was current when that
+  # tag/release/branch was made.
+  ./makexpi.sh $1 --no-recurse || exit 1
+  # The fact that the above works even when the thing you are building predates
+  # support for --no-recurse in this script is (1) non-intuitive; (2) crazy; and (3)
+  # involves two pristine checkouts of $1 within each other
+
+  # Now escape from the horrible mess we've made
+  cd ..
+	XPI_NAME="$APP_NAME-$1.xpi"
+  # In this mad recursive situation, sometimes old buggy build scripts make
+  # the xpi as ./pkg :(
+  if ! cp $SUBDIR/pkg/$XPI_NAME pkg/ ; then
+    echo Recovering from hair-raising recursion:
+    echo cp $SUBDIR/pkg pkg/$XPI_NAME
+    cp $SUBDIR/pkg pkg/$XPI_NAME
+  fi
+  rm -rf $SUBDIR
+  exit 0
 fi
 
-if [ -x trivial-validate.py ]; then
-	VALIDATE="./trivial-validate.py --ignoredups google --ignoredups facebook"
+if [ -f utils/trivial-validate.py ]; then
+	VALIDATE="python utils/trivial-validate.py --ignoredups google --ignoredups facebook"
+elif [ -f trivial-validate.py ] ; then
+	VALIDATE="python trivial-validate.py --ignoredups google --ignoredups facebook"
+elif [ -x utils/trivial-validate ] ; then
+  # This case probably never happens
+	VALIDATE=./utils/trivial-validate
 else
 	VALIDATE=./trivial-validate
 fi
+
 if $VALIDATE src/chrome/content/rules >&2
 then
   echo Validation of included rulesets completed. >&2
@@ -40,9 +67,13 @@ else
   exit 1
 fi
 
-if [ -f relaxng.xml -a -x "$(which xmllint)" ] >&2
+if [ -f utils/relaxng.xml -a -x "$(which xmllint)" ] >&2
 then
+<<<<<<< HEAD
   if xmllint --noout --relaxng relaxng.xml src/chrome/content/rules/*.xml
+=======
+  if xmllint --noout --relaxng utils/relaxng.xml src/chrome/content/rules/*.xml
+>>>>>>> FETCH_HEAD
   then
     echo Validation of rulesets with RELAX NG grammar completed. >&2
   else
@@ -53,9 +84,9 @@ else
   echo Validation of rulesets with RELAX NG grammar was SKIPPED. >&2
 fi
 
-if [ -x ./compare-locales.sh ] >&2
+if [ -x ./utils/compare-locales.sh ] >&2
 then
-  if ./compare-locales.sh >&2
+  if ./utils/compare-locales.sh >&2
   then
     echo Validation of included locales completed. >&2
   else
@@ -76,6 +107,7 @@ fi
 
 # Used for figuring out which branch to pull from when viewing source for rules
 GIT_OBJECT_FILE=".git/refs/heads/master"
+<<<<<<< HEAD
 GIT_COMMIT_ID="HEAD"
 if [ -e "$GIT_OBJECT_FILE" ]; then
 	GIT_COMMIT_ID=$(cat "$GIT_OBJECT_FILE")
@@ -105,10 +137,15 @@ CRUSH=`rulesize`
 sed -i -e :a -re 's/<!--.*?-->//g;/<!--/N;//ba' $RULESETS
 sed -i ':a;N;$!ba;s/\n//g;s/>[ 	]*</></g;s/[ 	]*to=/ to=/g;s/[ 	]*from=/ from=/g;s/ \/>/\/>/g' $RULESETS
 echo "Crushed $CRUSH bytes of rulesets into `rulesize`"
+=======
+export GIT_COMMIT_ID="HEAD"
+if [ -e "$GIT_OBJECT_FILE" ]; then
+	export GIT_COMMIT_ID=$(cat "$GIT_OBJECT_FILE")
+fi
+>>>>>>> FETCH_HEAD
 
-# We make default.rulesets at build time, but it shouldn't have a variable
-# timestamp
-touch -r chrome/content/rules $RULESETS
+python ./utils/merge-rulesets.py
+cd src
 
 # Build the XPI!
 rm -f "../$XPI_NAME"

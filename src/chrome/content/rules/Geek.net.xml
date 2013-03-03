@@ -1,8 +1,27 @@
-<!-- slashdot stores most of their stuff here -->
-<ruleset name="Geek.net">
-	<target host="www.geek.net" />
-	<target host="geek.net" />
-	<rule from="^http://geek\.net/" to="https://geek.net/"/>
-	<rule from="^http://www\.geek\.net/" to="https://geek.net/"/>
-</ruleset>
+<!--
+	CDN buckets:
 
+		- d2hfi8wofzzjwf.cloudfront.net
+			- cdn.asset.geek.net
+
+-->
+<ruleset name="Geek.net">
+
+	<target host="*.geek.net" />
+	<target host="geek.net" />
+	<target host="cdn.asset.geek.net" />
+
+
+	<securecookie host="^geek\.net$" name=".*"/>
+
+
+	<rule from="^http://(www\.)?geek\.net/"
+		to="https://$1geek.net/"/>
+
+	<rule from="^https?://cdn\.asset\.geek\.net/"
+		to="https://d2hfi8wofzzjwf.cloudfront.net/" />
+
+	<rule from="^https?://investors\.geek\.net/common/"
+		to="https://investor.shareholder.com/common/"/>
+
+</ruleset>

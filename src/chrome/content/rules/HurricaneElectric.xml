@@ -1,10 +1,37 @@
-<ruleset name="HurricaneElectric">
-  <target host="he.net" />
-  <target host="www.he.net" />
-  <target host="ipv6.he.net" />
-  <target host="admin.he.net" />
-  <!-- bgp.he.net and faq.he.net are don't support SSL at the moment -->
+<!--
+	bgp.he.net and faq.he.net don't support SSL at the moment
 
-  <rule from="^http://he\.net/" to="https://www.he.net/"/>
-  <rule from="^http://([^/:@\.]+)\.he\.net/" to="https://$1.he.net/"/>
+
+	Problematic domains:
+
+		- (www.)hu.com *
+		- hurricaneelectric.com *
+
+	* Alternative domains, same content, using he.net certificate
+
+-->
+<ruleset name="Hurricane Electric">
+
+	<target host="he.com" />
+	<target host="www.he.com" />
+	<target host="he.net" />
+	<target host="*.he.net" />
+	<target host="hurricaneelectric.net" />
+	<target host="tunnelbroker.net" />
+	<target host="*.tunnelbroker.net" />
+
+
+	<securecookie host="^(?:.*\.)?he\.net$" name=".+" />
+	<securecookie host="^(?:.+\.)?tunnelbroker\.net$" name=".+" />
+
+
+	<rule from="^http://(?:www\.)?h(?:e\.com|urricaneelectric\.net)/"
+		to="https://www.he.net/" />
+
+	<rule from="^http://((?:admin|code|cust|dns|ipv6)\.)?he\.net/"
+		to="https://$1he.net/" />
+
+	<rule from="^http://(ipv[46]\.|www\.)?tunnelbroker\.net/"
+		to="https://$1tunnelbroker.net/" />
+
 </ruleset>

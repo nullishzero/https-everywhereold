@@ -1,0 +1,16 @@
+<ruleset name="Zendesk">
+
+	<target host="zendesk.com" />
+	<target host="*.zendesk.com" />
+	<!-- https://trac.torproject.org/projects/tor/ticket/8198 -->
+		<exclusion pattern="^http://(?:video|developer)\."/>
+
+	<securecookie host="^(.*\.)zendesk\.com$" name=".*"/>
+
+	<rule from="^http://cdn\.zendesk\.com/"
+		to="https://s3.amazonaws.com/zd-assets/"/>
+
+	<rule from="^http://([\w\-_]+\.)zendesk\.com/"
+		to="https://$1zendesk.com/" />
+
+</ruleset>

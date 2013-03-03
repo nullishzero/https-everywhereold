@@ -1,0 +1,79 @@
+<!--
+	For problematic rules, see Harvard-University-expired.xml.
+
+
+	Nonfunctional subdomains:
+
+		- (www.) *
+		- absabs
+		- news *
+		- reference.pin		(reused_issuer_and_serial)
+
+	* Times out
+
+
+	Partially covered subdomains:
+
+		- isites	(at least some pages redirect to http)
+
+
+	Problematic subdomains:
+
+		- berkman *
+		- www.cyber.law *
+		- eon.law	(shows adam.law, mismatched, CN: adam.law.harvard.edu)
+		- pin *
+		- www.pin	($ redirects to http)
+		- pngu.mgh	(expired)
+
+	* Mismatched
+
+
+	Fully covered subdomains:
+
+		- (www.)berkman
+		- login.icommons
+
+		- law subdomains:
+
+			- adam *
+			- blogs *
+			- (www.)cyber
+			- eon *		(→ cyber.law.harvard.edu)
+
+		- www.pin1
+
+	* www.foo doesn't exist
+
+
+	Targets solely for wildcard cookies:
+
+		- *.cyber.law.harvard.edu
+
+-->
+<ruleset name="Harvard University (partial)">
+
+	<target host="*.harvard.edu" />
+		<exclusion pattern="^http://isites\.harvard\.edu/(?![fj]s/|icb/calendar/themes/|icb/[\w\-]\.css)" />
+	<target host="www.*.harvard.edu" />
+	<target host="login.icommons.harvard.edu" />
+	<target host="*.law.harvard.edu" />
+	<target host="*.cyber.law.harvard.edu" />
+
+
+	<securecookie host="^(?:login\.icommons|.*\.law|www\.pin1)\.harvard\.edu$" name=".+" />
+
+
+	<rule from="^http://www\.pin\.harvard\.edu/(?:$|\?.*)"
+		to="https://www.pin.harvard.edu/home.shtml" />
+
+	<rule from="^https?://(?:www\.)?(berkma|pi)n\.harvard\.edu/"
+		to="https://www.$1n.harvard.edu/" />
+
+	<rule from="^http://(login\.icommons|isites|adam\.law|blogs\.law|www\.pin1)\.harvard\.edu/"
+		to="https://$1.harvard.edu/" />
+
+	<rule from="^https?://(?:www\.)?(?:cyber|eon)\.law\.harvard\.edu/"
+		to="https://cyber.law.harvard.edu/" />
+
+</ruleset>

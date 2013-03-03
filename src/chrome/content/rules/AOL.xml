@@ -1,16 +1,156 @@
-<ruleset name="AOL (partial)">
-	<target host="bill.aol.com" />
-	<target host="contactus.aol.com" />
-	<target host="account.login.aol.com" />
-	<target host="api.mail.aol.com" />
-	<target host="myaccount.aol.com" />
-	<target host="new.aol.com" />
-	<target host="openid.aol.com" />
-	<target host="pki-info.aol.com" />
-	<target host="aolctoftp.red.aol.com" />
-	<target host="api.screenname.aol.com" />
-	<target host="my.screenname.aol.com" />
-	<target host="dashboard.voice.aol.com" />
+<!--
+	For problematic coverage, see AOL-mismatches.xml.
 
-	<rule from="^http://(bill|contactus|(account\.login)|(api\.mail)|myaccount|new|openid|pki-info|(aolctoftp\.red)|((api|my)\.screenname)|(dashboard\.voice))\.aol\.com/" to="https://$1.aol.com/" />
+
+	Other AOL rulesets:
+
+		- 5min.xml
+		- AboutMe.xml
+		- AOL-Advertising.xml
+		- Huffington-Post.xml
+		- Moviefone.xml
+
+
+	Much of CrunchBoard is handled in PersonForce-clients.xml.
+
+	TechCrunch is handled in WordPress-blogs.xml.
+
+
+	CDN buckets:
+
+		- v6v4.win.blogsmith.aol.com.aol.akadns.net
+
+			- www.engadget.com
+
+		- win.blogsmith.aol.com.aol.akadns.net
+
+			- alt.engadget.com
+			- hd.engadget.com
+			- mobile.engadget.com
+
+		- platform-a.egslb.aol.com
+		- myfeeds.aolcdn.com.edgesuite.net
+		- o.aolcdn-ds.com.edgesuite.net
+
+		- www.blogsmithcdn-ds.com.edgesuite.net
+
+			- www.blogcdn.com
+			- www.blogsmithcdn.com
+			- www.blogsmithmedia.com
+
+
+	Nonfunctional domains:
+
+		- aol.com subdomains:
+
+			- advertising
+			- hss-prod.hss
+			- music
+			- stg.s.on
+			- stg.on
+			- stg.support.on
+			- stg.t.on
+
+		- euportal.aolcdn.com		(503, Akamai)
+		- myfeeds.aolcdn.com		(ditto)
+		- stg.support.aolonnetwork.com
+		- media.blogcdn.com
+		- blogsmithmedia.com		(ditto)
+
+		- engadget.com subdomains:
+
+			- (www.)
+			- alt
+			- hd
+			- mobile
+
+		- (www.)joystiq.com
+		- massively.joystiq.com
+		- tuaw.com
+		- (www.)weblogsinc.com
+		- www.winamp.com
+		- blog.winamp.com
+
+
+	Problematic domains:
+
+		- aim.com
+		- cdn.aim.com		(akamai)
+
+		- aol.com subdomains:
+
+			- as.on		(works, akamai)
+			- at.on		(works, akamai)
+			- support.on
+			- privacy	(works, mismatched, CN: misc.blogsmith.aol.com)
+
+		- console.aolonnetwork.com	(works, mismatched)
+
+-->
+<ruleset name="AOL (partial)">
+
+	<target host="aim.com" />
+	<target host="*.aim.com" />
+	<target host="aol.com" />
+	<target host="*.aol.com" />
+		<!--
+			Added by AOL, required for http logout.
+								-->
+		<exclusion pattern="^http://my\.screenname\.aol\.com/_cqr/logout/" />
+	<target host="aol.co.uk" />
+	<target host="*.aol.co.uk" />
+	<target host="*.aolcdn.com" />
+		<exclusion pattern="^http://o\.aolcdn\.com/(?:dims-global|mars|myfeeds|portaleu|winamp/dp)/" />
+	<target host="support.aolonnetwork.com" />
+	<target host="crunchboard.com" />
+	<target host="www.crunchboard.com" />
+	<target host="netscape.com" />
+	<target host="*.netscape.com" />
+
+
+	<!--	.my.screenname.aol.com		-->
+	<securecookie host="^(?:dev\.sandbox\.autos|new)\.aol\.com$" name=".+" />
+	<securecookie host="^www\.aol\.co\.uk$" name=".+" />
+	<securecookie host="^support\.aolonnetwork\.com$" name=".+" />
+
+
+	<rule from="^https?://(?:cdn\.|www\.)?aim\.com/"
+		to="https://www.aim.com/" />
+
+	<rule from="^https?://(?:www\.)?aol\.com/(favicon\.ico|video/)"
+		to="https://www.aol.com/$1" />
+
+	<rule from="^http://((?:dev\.sandbox\.)?autos|bill|misc\.blogsmith|contactus|account\.login|(?:api\.|cdn\.web)mail|myaccount|netscape|new|on|openid|pki-info|aolctoftp\.red|s2c|(?:api|my)\.screenname|dashboard\.voice)\.aol\.com/"
+		to="https://$1.aol.com/" />
+
+	<rule from="^https?://a?(s|t)\.on\.aol\.com/"
+		to="https://$1.on.aol.com/" />
+
+	<rule from="^https?://support\.(?:on\.aol|aolonnetwork)\.com/"
+		to="https://support.aolonnetwork.com/" />
+
+	<rule from="^https?://(?:exp)?api\.oscar\.aol\.com/"
+		to="https://api.oscar.aol.com/" />
+
+	<rule from="^https?://(?:www\.)?aol\.co\.uk/"
+		to="https://www.aol.co.uk/" />
+
+	<rule from="^http://rs\.aol\.co\.uk/"
+		to="https://rs.aol.co.uk/" />
+
+	<rule from="^https?://(?:o3?|s(ns-static)?)\.aolcdn\.com/"
+		to="https://s$1.aolcdn.com/" />
+
+	<rule from="^https?://(?:www\.)?crunchboard\.com/(build|images3?|include)/"
+		to="https://secure.personforce.com/$1/" />
+
+	<!--	- Doesn't work over https.
+		- Redirects as so.
+					-->
+	<rule from="^https?://(?:(?:home|www)\.)?netscape\.com/"
+		to="https://netscape.aol.com/" />
+
+	<rule from="^https?://(?:web)?mail\.netscape\.com/"
+		to="https://my.screenname.aol.com/_cqr/login/login.psp?sitedomain=sns.webmail.aol.com" />
+
 </ruleset>

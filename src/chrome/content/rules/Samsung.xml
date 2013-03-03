@@ -1,0 +1,32 @@
+<!--
+	Problematic subdomains:
+
+		- ^		(times out)
+		- nmetrics	(mismatched, CN: *.112.2o7.net)
+
+
+	Nonfunctional subdomains:
+
+		- origin	(times out)
+
+-->
+<ruleset name="Samsung (partial)">
+
+	<target host="samsung.com" />
+	<target host="*.samsung.com" />
+
+
+	<securecookie host="^(?:www)?\.samsung\.com$" name=".+" />
+
+
+	<rule from="^https?://(?:www\.)?samsung\.com/"
+		to="https://www.samsung.com/" />
+
+	<rule from="^https?://nmetrics\.samsung\.com/"
+		to="https://samsung-com.112.2o7.net/" />
+
+	<!--	At least some pages redirect to http.	-->
+	<rule from="^http://opensource\.samsung\.com/img/"
+		to="https://opensource.samsung.com/img/" />
+
+</ruleset>
